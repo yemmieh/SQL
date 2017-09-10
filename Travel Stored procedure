@@ -1,0 +1,195 @@
+USE [Travel_Db]
+GO
+/****** Object:  StoredProcedure [dbo].[zb_TravelNotifier]    Script Date: 24/12/2015 6:23:40 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ 
+ALTER PROCEDURE [dbo].[zb_TravelNotifier]
+          @appid                                         VARCHAR(100),
+       @RequestID                     VARCHAR(100) ,
+       @InitiatorID                   VARCHAR(100) ,
+          @InitiatorName                 VARCHAR(100) ,
+          @InitiatorBranchName           VARCHAR(100) = null,  
+       @InitiatorBranchCode           int = null,
+          @deptcode                               VARCHAR(100)= null,
+          @unitname                               VARCHAR(100)= null,
+          @unitcode                               VARCHAR(100)= null,       
+          @InitiatorDept                 VARCHAR(100) = null ,  
+          @Confirm                                       VARCHAR(100) = null,     
+          @InitiatorJobTitle             VARCHAR(100)= null ,         
+          @InitiatorLevel                VARCHAR(100) = null,
+       @InitiatorEmail                VARCHAR(100) = null ,
+       @AccountNo                     VARCHAR(100) = null  ,
+       @AccountName                   VARCHAR(100) = null  , 
+          @DomicileBranch                         VARCHAR(100) = null,
+          @DomicileBranchCode            int = null,        
+       @SelectedCardList              VARCHAR(500) = null  ,
+       @AvailableCardList             VARCHAR(500) = null  ,
+       @Status                                           varchar(100) = null,
+          @requeststageid                         INT,
+       @RequestStage                  VARCHAR(100)  = null ,
+          @Comment                       VARCHAR(500) = null  ,
+          @Action                                        VARCHAR(100) = null,
+          @CountryRecord                 XML = null,
+       @Approver_Name                 VARCHAR(100) = null  ,   
+       @Approver_StaffNo              VARCHAR(100)  = null  ,
+          @Date_Submitted                         datetime = null,
+          @Date_Approved                          datetime,       
+       --@BondsNew                      DECIMAL   ,
+          @ErrorCode                              INT OUTPUT ,
+          @ErrorText                              VARCHAR(250) OUTPUT     
+AS
+ 
+   SET NOCOUNT ON
+   BEGIN TRY
+       IF  EXISTS(SELECT RequestID from Tb_TravelNotify WHERE RequestID= @RequestID)
+              BEGIN
+      
+              UPDATE dbo.Tb_TravelNotify
+              SET
+                     ApproverComment            = @Comment,
+            [Status]              = @Status,
+                     RequestStage         = @RequestStage ,
+                     requeststageid      = @requeststageid,
+                     Approver_Name        = @Approver_Name,
+                     [Action]            = @Action,
+                     Approver_StaffNo     = @Approver_StaffNo ,            
+                     Date_Approved        = @Date_Approved
+                     --BondsNew = @BondsNew
+              WHERE RequestID  = @RequestID
+              END
+        ELSE
+       BEGIN
+ 
+              INSERT INTO dbo.Tb_TravelNotify
+            (
+            RequestID                      ,
+            InitiatorID                       ,
+                     InitiatorName                     ,     
+                     InitiatorBranchName                   ,        
+            InitiatorBranchCode                     ,
+                     InitiatorDept                     ,  
+                     InitiatorJobTitle                     ,
+                     InitiatorLevel         ,
+            InitiatorEmail            ,
+                     Confirm ,
+            AccountNo                           ,
+            AccountName               ,
+                     DomicileBranch         ,
+                     DomicileBranchCode    ,
+          
+                     SelectedCardList           ,
+                     --BondsExist                   ,
+                     AvailableCardList                     ,
+            [Status]                            ,
+                     Comment                                  ,
+                     [Action]                                 ,
+                     CountryRecord              ,
+            RequestStage                     ,
+                     requeststageid                           ,
+            Approver_Name                    ,
+                     Approver_StaffNo                      ,
+                     Date_Submitted                 ,        
+                     Date_Approved ,
+                     deptcode,
+                     unitname,
+                     unitcode
+                     --BondsNew                
+          )
+     VALUES
+          (
+            @RequestID                      ,
+                     @InitiatorID                       ,
+                     @InitiatorName                      ,
+                     @InitiatorBranchName                     ,
+                     @InitiatorBranchCode                      ,
+                     @InitiatorDept                      ,
+                     @InitiatorJobTitle                      ,     
+                     @InitiatorLevel                 ,         
+            @InitiatorEmail                         ,
+                     @Confirm,
+            @AccountNo                             ,
+            @AccountName                         ,
+                     @DomicileBranch                                        ,
+                     @DomicileBranchCode           ,
+          
+              @SelectedCardList          ,
+                     --BondsExist                   ,
+                     @AvailableCardList                    , 
+            @Status                     ,
+                     @Comment                                 ,
+                     @Action,
+                     @CountryRecord                           ,
+            @RequestStage                           ,
+                     @requeststageid                          ,
+            @Approver_Name                      ,
+            @Approver_StaffNo                     ,
+            GETDATE()                        ,
+            NULL          ,
+                     @deptcode,
+                     @unitname,
+                     @unitcode         
+            --@BondsNew                                     
+          )
+              END   
+               DECLARE
+                                           @Stageid       INT ,
+                                           @dptname       VARCHAR(50),
+                                           @dptcode       VARCHAR(50),
+                                           @untname       VARCHAR(90),
+                                           @untcode       VARCHAR(50),
+                                           @workflowid  VARCHAR(50);
+                                        
+              SELECT TOP 1 @Stageid = requeststageid , @InitiatorDept = InitiatorDept , @dptcode = deptcode, @untname = unitname , @untcode = unitcode
+                               FROM Tb_TravelNotify
+                               WHERE  RequestID = @RequestID;
+                    
+             BEGIN TRY
+             
+                                        
+                     EXEC AppraisalDb..zsp_workflowupdate
+                           --@tvpTargetEntries  = @tvpTargetEntries,
+                           @appid               = @appid,
+                           @deptname            = @InitiatorDept,
+                           @deptcode            = @dptcode,
+                           @unitname            = @untname,
+                           @unitcode            = @untcode,
+                           @status                    = @Status,
+                           @workflowid       = @RequestID,
+                           @requeststage   = @RequestStage,
+                           @requeststageid = @Stageid,
+                           @approvername   = @Approver_Name,
+                           @approverid       = @Approver_StaffNo,
+                           @approveraction = @Status,
+                           @zsErrorMsg       = @ErrorText OUTPUT,
+                           @zsErrorCode  = @ErrorCode OUTPUT;
+              END TRY
+ 
+ 
+   
+       --select @ErrorCode = 0
+       --       ,@ErrorText = ''  
+      
+       BEGIN CATCH
+              --IF @@TRANCOUNT > 0
+              IF @ErrorCode <>0
+                     ROLLBACK TRANSACTION
+              select @ErrorCode = - 70003
+                           ,@ErrorText =error_message() --'SQLError while INSERTING into zib_workflowupdate'                     
+              --return @ErrorCode              
+       END CATCH
+  
+             
+       END TRY
+ 
+       BEGIN CATCH
+              IF @@TRANCOUNT > 0
+                     ROLLBACK TRANSACTION
+              select @ErrorCode = - 70004
+                           ,@ErrorText =error_message() -- 'SQLError while INSERTING into Tb_TravelNotify'
+                          
+              --return @ErrorCode
+                    
+       END CATCH
