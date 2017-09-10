@@ -1,0 +1,178 @@
+USE [AppraisalDb]
+GO
+/****** Object:  StoredProcedure [dbo].[zsp_insert_target_entries]    Script Date: 24/12/2015 6:26:04 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ 
+ALTER PROCEDURE [dbo].[zsp_insert_target_entries]
+                @tvpTargetEntries    TargetEntriesType    READONLY
+          ,     @deptname            VARCHAR(90)             
+          ,     @deptcode            VARCHAR(90)
+          ,     @unitname            VARCHAR(90)  =''               
+          ,     @unitcode            VARCHAR(90)  =''  
+          ,     @target_status       VARCHAR(50)  =''
+          ,     @hr_uploader_name    VARCHAR(100) =''
+          ,     @hr_uploader_id      VARCHAR(20)  =''
+          ,     @appperiod           VARCHAR(20)
+          ,     @appid                     VARCHAR(50)
+          ,     @rErrorCode          INT       OUTPUT
+          ,     @rErrorMsg           VARCHAR(255) OUTPUT
+AS
+    SET XACT_ABORT , NOCOUNT ON
+    DECLARE
+                @newrequeststage     VARCHAR(50)
+          ,     @newrequeststageid  INT
+          ,     @roleid                    INT
+          ,     @starttrancount int
+    SELECT
+                @rErrorCode = 0
+          ,     @rErrorMsg  = '';
+   
+    BEGIN TRY
+          SELECT @starttrancount = @@TRANCOUNT
+          
+          IF @starttrancount=0              
+                BEGIN TRANSACTION;
+                       
+                      MERGE Tb_TargetEntries    AS    _Target
+                     USING @tvpTargetEntries AS _Source
+                     ON  (_Target.entry_key    = _Source.entry_key)
+   
+                      WHEN MATCHED THEN        
+                 
+                           UPDATE SET  entry_key         = _Source.entry_key,
+                                           workflowid     = _Source.workflowid,
+                                           requeststageid  = _Source.requeststageid,
+                                           requeststage          = _Source.requeststage,
+                                           requestdate    = _Source.requestdate,
+                                           employee_number = _Source.employee_number,
+                                           name     = _Source.name,
+                                           grade           = _Source.grade,
+                                           cabal           = _Source.cabal,
+                                           cabal_l         = _Source.cabal_l,
+                                           sabal           = _Source.sabal,
+                                           sabal_l         = _Source.sabal_l,
+                                           fx              = _Source.fx,
+                                           rv              = _Source.rv,
+                                           fd              = _Source.fd,
+                                           inc      = _Source.inc,
+                                           inc_l           = _Source.inc_l,
+                                           deptname    = @deptname,
+                                           deptcode    = @deptcode,
+                                           /*unitname    = @unitname,
+                                           unitcode    = @unitcode,*/
+                                           createdt    = GETDATE(),
+                                           target_status      = @target_status,
+                                           appperiod          = @appperiod
+                     WHEN NOT MATCHED THEN
+                           INSERT (              entry_key , workflowid , requeststageid , requeststage , requestdate
+                                                ,       employee_number , name , grade , cabal , cabal_l , sabal , sabal_l
+                                                 ,       fx , rv , fd , inc , inc_l
+                                                 ,       deptname , deptcode /*, unitname , unitcode*/ ,createdt , target_status
+                                                 ,       hr_uploader_name , hr_uploader_id , appperiod
+                                      )
+                           VALUES (              _Source.entry_key , _Source.workflowid , _Source.requeststageid , _Source.requeststage , _Source.requestdate 
+                                                ,       _Source.employee_number , _Source.name , _Source.grade , _Source.cabal , _Source.cabal_l , _Source.sabal , _Source.sabal_l
+                                                 ,       _Source.fx , _Source.rv , _Source.fd , _Source.inc , _Source.inc_l
+                                                 ,       @deptname , @deptcode , /*@unitname , @unitcode ,*/ GETDATE() , @target_status
+                                                 ,       @hr_uploader_name , @hr_uploader_id , @appperiod
+                                      );
+                          
+                      --WHEN NOT MATCHED BY SOURCE
+                           --THEN DELETE;
+ 
+                     --IF @target_status<>'Saved'
+                           BEGIN
+                               --post to the workflow table
+                               DECLARE @zsErrorCode      INT,
+                                           @zsErrorMsg    VARCHAR(255),
+                                           @dptname       VARCHAR(50),
+                                           @dptcode       VARCHAR(50),
+                                           @untname       VARCHAR(90),
+                                           @untcode       VARCHAR(50),
+                                           @workflowid    VARCHAR(50),
+                                           @requeststage   VARCHAR(50),
+                                           @requeststageid INT,
+                                           @audithistory   XML,
+                                           @totca                VARCHAR(50),
+                                           @totca_l       VARCHAR(50),
+                                           @totsa                VARCHAR(50),
+                                           @totsa_l       VARCHAR(50),
+                                           @totfx                VARCHAR(50),
+                                           @totrv                VARCHAR(50),
+                                           @totfd                VARCHAR(50),
+                                           @totinc               VARCHAR(50),
+                                           @totinc_l      VARCHAR(50);
+                              
+                               SELECT TOP 1  @workflowid = workflowid ,    @requeststage = requeststage,@requeststageid = requeststageid
+                               FROM @tvpTargetEntries;
+ 
+                               SELECT @dptname = deptname , @dptcode = deptcode, @untname = unitname , @untcode = unitcode
+                               FROM Tb_TargetInitiators
+                               WHERE AppraisalPeriod = @appperiod and InitiatorNumber = @hr_uploader_id;
+ 
+                               SELECT  @totca       = SUM(convert(decimal,replace(isnull(cabal,0), ',', ''))),
+                                           @totca_l    = SUM(convert(decimal,replace(isnull(cabal_l,0), ',', ''))),
+                                           @totsa          = SUM(convert(decimal,replace(isnull(sabal,0), ',', ''))),
+                                           @totsa_l    = SUM(convert(decimal,replace(isnull(sabal_l,0), ',', ''))),
+                                           @totfx          = SUM(convert(decimal,replace(isnull(fx,0), ',', ''))),
+                                           @totrv          = SUM(convert(decimal,replace(isnull(rv,0), ',', ''))),
+                                           @totfd          = SUM(convert(decimal,replace(isnull(fd,0), ',', ''))),
+                                           @totinc         = SUM(convert(decimal,replace(isnull(inc,0), ',', ''))),
+                                           @totinc_l   = SUM(convert(decimal,replace(isnull(inc_l,0), ',', '')))
+                               FROM @tvpTargetEntries;
+ 
+                               SET @audithistory = N'<Audit>'+
+                                                                 '<approver>'+@hr_uploader_name+'</approver>'+
+                                                                 '<stageprocessed>'+@requeststage+'</stageprocessed>'+
+                                                                 '<totca>'+@totca+'</totca>'+
+                                                                 '<totca_l>'+@totca_l+'</totca_l>'+
+                                                                 '<totsa>'+@totsa+'</totsa>'+
+                                                                 '<totsa_l>'+@totsa_l+'</totsa_l>'+
+                                                                 '<totfx>'+@totfx+'</totfx>'+
+                                                                 '<totrv>'+@totrv+'</totrv>'+
+                                                                 '<totfd>'+@totfd+'</totfd>'+
+                                                                 '<totinc>'+@totinc+'</totinc>'+
+                                                                 '<totinc_l>'+@totinc_l+'</totinc_l>'+
+                                                           '</Audit>';
+                              
+                               --BEGIN TRY
+                                     EXEC zsp_workflowupdate
+                                           --@tvpTargetEntries      = @tvpTargetEntries,
+                                           @appid          = @appid,
+                                           @deptname   = @dptname,
+                                           @deptcode   = @dptcode,
+                                           @unitname   = @untname,
+                                           @unitcode   = @untcode,
+                                           @status         = @target_status,
+                                           @workflowid    = @workflowid,
+                                           @requeststage   = @requeststage,
+                                           @requeststageid = @requeststageid,
+                                           @approvername   = @hr_uploader_name,
+                                           @approverid    = @hr_uploader_id,
+                                           @approvercomments= 'NONE', ---PLEASE WORK ON COMMENTS
+                                           @approveraction = @target_status,
+                                           @audithistory   = @audithistory,
+                                           @zsErrorMsg    = @zsErrorMsg OUTPUT,
+                                           @zsErrorCode          = @zsErrorCode OUTPUT;
+                               --END TRY
+                               --BEGIN CATCH
+                                     --IF @zsErrorCode <>0
+                                           --ROLLBACK TRANSACTION
+                                           --SELECT        @rErrorCode = ERROR_NUMBER()
+                                         --            ,   @rErrorMsg  = ERROR_MESSAGE();
+                               --END CATCH
+                           END
+ 
+          IF @starttrancount = 0
+                COMMIT TRANSACTION
+    END TRY
+ 
+    BEGIN CATCH
+          IF XACT_STATE() <> 0 AND @starttrancount = 0
+                ROLLBACK TRANSACTION
+          SELECT            @rErrorCode = -2333
+                      ,   @rErrorMsg  = ERROR_MESSAGE();
+    END CATCH
