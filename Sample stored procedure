@@ -1,0 +1,495 @@
+USE [Staging]
+GO
+/****** Object:  StoredProcedure [dbo].[zsp_User_Proc]    Script Date: 16/07/2015 6:24:08 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[zsp_User_Proc]
+		
+        @UserId				int,
+        @Username           varchar(50) = Null,
+        @Password			varchar(50)	= Null,
+		@FirstName          varchar(50) = Null,
+        @Surname			varchar(50)	= Null,
+		@Fullname           varchar(50) = Null,
+        @Role				varchar(50)	= Null,
+		@DateEnrolled       datetime	= Null,
+		@DateModified       datetime	= Null,
+        @UserGuid			varchar(50)	= Null,
+        @mode				varchar(15),
+        @rSQLError			int           output,
+        @rAPPErrorMsg		varchar(100)  output
+
+as
+
+
+    /* Insert new category */
+    if @mode = 'Add'
+        Begin
+            insert into UserTable
+			(
+			
+			  UserId	
+			, Username
+			, Password
+			, FirstName
+			, Surname
+			, Fullname
+			, Role
+			, DateEnrolled
+			, DateModified
+			, UserGuid
+			)
+            values
+			 (
+			  @UserId	
+			 ,@Username 
+			 ,@Password
+			 ,@FirstName	
+			 ,@Surname 
+			 ,@Fullname
+			 ,@Role	
+			 ,@DateEnrolled 
+			 ,Null
+			 ,@UserGuid
+
+			 ) 
+          
+                     select @rAPPErrorMsg = 'Successfully Inserted'
+                
+                  if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                          @rAPPErrorMsg = 'SQL Error while Adding User'
+                   return -100
+                end
+
+        end
+
+     /* Modify category */
+    if @mode = 'Edit'
+        Begin
+            update UserTable
+            set Username =  @Username,
+                FirstName = @FirstName,
+				Surname =  @Surname,
+                Fullname = @Fullname,
+				Role =  @Role,
+				DateModified = @DateModified,
+				UserGuid =  @UserGuid
+              
+            where UserId = @UserId
+            
+            if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                        @rAPPErrorMsg = 'SQL Error while updating Updating'
+                   return -101
+                end
+        end
+    
+    
+     /* Delete category */
+    if @mode = 'delete'
+        Begin
+            Delete from  UserTable
+            where UserId = @UserId
+            
+            if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                        @rAPPErrorMsg = 'SQL Error while deleting User'
+                   return -110
+                end
+        end
+    
+return 0
+
+
+Supplier-------------------------------------------------
+--------------------------------------------------------------
+USE [Staging]
+GO
+/****** Object:  StoredProcedure [dbo].[zsp_Supplier_proc]    Script Date: 16/07/2015 6:24:49 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[zsp_Supplier_proc]
+/*
+		public int SuppId { get; set; }
+        public string Name { get; set; }
+        public string Status { get; set; }
+        public string Addr1 { get; set; }
+        public string Addr2 { get; set; }
+        public string City { get; set; }
+
+        public string State { get; set; }
+        public int Zip { get; set; }
+        public double Phone { get; set; }
+        public DateTime Dateenrolled { get; set; }
+		*/
+        @SuppId			int ,
+        @Name           varchar(100) = NULL,
+        @Status			varchar(100) = NULL,
+		@Addr1			varchar(100) = NULL,
+        @Addr2          varchar(100) = NULL,
+        @City			varchar(100) = NULL,
+		@State			varchar(100) = NULL,
+        @Zip            int = NULL,
+        @Phone			bigint = NULL,
+		@DateAdded		datetime = NULL,
+		@Datemodified	datetime = NULL,
+        @mode			varchar(15),
+        @rSQLError      int             output,
+        @rAPPErrorMsg   varchar(100)    output
+
+as
+
+
+    /* Insert new category */
+    if @mode = 'Add'
+        Begin
+            insert into Supplier
+			(
+			
+				
+				Name ,
+				Status,
+				Addr1,
+				Addr2 ,
+				City,
+				State,
+				Zip,
+				Phone,
+				DateAdded,
+				Datemodified
+			)
+            values
+			 (
+				
+				@Name ,
+				@Status,
+				@Addr1,
+				@Addr2 ,
+				@City,
+				@State,
+				@Zip,
+				@Phone,
+				GETDATE(),
+				NULL
+			 ) 
+          
+                     select @rAPPErrorMsg = 'Successfully Inserted'
+                
+                  if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                          @rAPPErrorMsg = 'SQL Error while inserting into Supplier'
+                   return -100
+                end
+
+        end
+
+     /* Modify category */
+    if @mode = 'Edit'
+        Begin
+            update Supplier
+            set Name		=	@Name,
+				Status		=	@Status,
+				Addr1		=	@Addr1,
+				Addr2		=	@Addr2,
+				City		=	@City,
+				State		=	@State,
+				Zip			=	@Zip,
+				Phone		=	@Phone,
+				Datemodified=   getdate()
+            where SuppId = @SuppId
+            
+            if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                        @rAPPErrorMsg = 'SQL Error while updating Supplier'
+                   return -101
+                end
+        end
+    
+    
+     /* Delete category */
+    if @mode = 'delete'
+        Begin
+            Delete from  Supplier
+            where SuppId = @SuppId
+            
+            if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                        @rAPPErrorMsg = 'SQL Error while deleting Supplier'
+                   return -110
+                end
+        end
+    
+return 0
+
+----------------------------------Product____Category-----------------------------
+---------------------------------------------------------
+USE [Staging]
+GO
+/****** Object:  StoredProcedure [dbo].[zsp_product_category]    Script Date: 16/07/2015 6:25:22 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[zsp_product_category]
+		@ProductId		int,
+        @CategoryId     int,
+        @Name           varchar(50),
+        @Desn			varchar(50),
+        @mode			varchar(15),
+        @rSQLError      int             output,
+        @rAPPErrorMsg   varchar(100)    output
+
+as
+
+
+    /* Insert new category */
+    if @mode = 'Add'
+        Begin
+            insert into Product
+			(
+			ProductId
+			,CategoryId
+			, Name
+			, Desn
+			)
+            values
+			 (
+			 @ProductId
+			, @CategoryId
+			 , @Name
+			 ,@Desn
+			 ) 
+          
+                     select @rAPPErrorMsg = 'Successfully Inserted'
+                
+                  if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                          @rAPPErrorMsg = 'SQL Error while inserting into category'
+                   return -100
+                end
+
+        end
+
+     /* Modify category */
+    if @mode = 'Edit'
+        Begin
+            update Product
+            set Name =  @Name,
+                Desn = @Desn
+            where CategoryId = @CategoryId
+            
+            if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                        @rAPPErrorMsg = 'SQL Error while updating category'
+                   return -101
+                end
+        end
+    
+    
+     /* Delete category */
+    if @mode = 'delete'
+        Begin
+            Delete from  Product
+            where CategoryId = @CategoryId
+            
+            if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                        @rAPPErrorMsg = 'SQL Error while deleting category'
+                   return -110
+                end
+        end
+    
+return 0
+
+
+----------------------------------Item--------------------------
+------------------------------------------------------------------
+USE [Staging]
+GO
+/****** Object:  StoredProcedure [dbo].[zsp_Item_Procdure]    Script Date: 16/07/2015 6:25:31 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[zsp_Item_Procdure]
+		@ItemId				int,
+		@ProductId			int = null,
+        @ListPrice			int = null,
+        @UnitCost           decimal(18, 0)= null,
+        @Supplier			varchar(50)= null,
+	    @Status				varchar(50)= null,
+        @Name				varchar(50)= null,
+        @mode				varchar(15)= null,
+        @rSQLError			int             output,
+        @rAPPErrorMsg		varchar(100)    output
+
+as
+
+
+    /* Insert new category */
+    if @mode = 'Add'
+        Begin
+            insert into Item
+			(
+			ProductId
+			,ListPrice
+			,UnitCost
+			,Supplier
+			,Status
+			,Name			
+			)
+            values
+			 (
+			 @ProductId
+			,@ListPrice
+			,@UnitCost
+			,@Supplier
+			,@Status	
+			,@Name
+			 ) 
+          
+                     select @rAPPErrorMsg = 'Successfully Inserted'
+                
+                  if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                          @rAPPErrorMsg = 'SQL Error while inserting into category'
+                   return -100
+                end
+
+        end
+
+     /* Modify category */
+    if @mode = 'Edit'
+        Begin
+            update Item
+            set ProductId =  @ProductId,
+                ListPrice = @ListPrice,
+				 UnitCost =  @UnitCost,
+                Supplier = @Supplier,
+				Status =  @Status,
+                Name = @Name
+            where ItemId = @ItemId
+            
+            if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                        @rAPPErrorMsg = 'SQL Error while updating category'
+                   return -101
+                end
+        end
+    
+    
+     /* Delete category */
+    if @mode = 'delete'
+        Begin
+            Delete from  Item
+            where ItemId = @ItemId
+            
+            if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                        @rAPPErrorMsg = 'SQL Error while deleting category'
+                   return -110
+                end
+        end
+    
+return 0
+
+
+-----------------------------------------------------Category---------------------
+----------------------------------------------------------
+USE [Staging]
+GO
+/****** Object:  StoredProcedure [dbo].[zsp_Category_Proc]    Script Date: 16/07/2015 6:25:58 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[zsp_Category_Proc]
+		
+        @CategoryId     int,
+        @Name           varchar(50) = Null,
+        @Descn			varchar(50)= Null,
+        @mode			varchar(15),
+        @rSQLError      int             output,
+        @rAPPErrorMsg   varchar(100)    output
+
+as
+
+
+    /* Insert new category */
+    if @mode = 'Add'
+        Begin
+            insert into Category
+			(
+			
+			CategoryId
+			, Name
+			, Descn
+			)
+            values
+			 (
+			 @CategoryId
+			 , @Name
+			 ,@Descn
+			 ) 
+          
+                     select @rAPPErrorMsg = 'Successfully Inserted'
+                
+                  if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                          @rAPPErrorMsg = 'SQL Error while inserting into category'
+                   return -100
+                end
+
+        end
+
+     /* Modify category */
+    if @mode = 'Edit'
+        Begin
+            update Category
+            set Name =  @Name,
+                Descn = @Descn
+            where CategoryId = @CategoryId
+            
+            if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                        @rAPPErrorMsg = 'SQL Error while updating category'
+                   return -101
+                end
+        end
+    
+    
+     /* Delete category */
+    if @mode = 'delete'
+        Begin
+            Delete from  Category
+            where CategoryId = @CategoryId
+            
+            if @@error <> 0
+                begin
+                   select @rSQLError = @@error ,
+                        @rAPPErrorMsg = 'SQL Error while deleting category'
+                   return -110
+                end
+        end
+    
+return 0
+
